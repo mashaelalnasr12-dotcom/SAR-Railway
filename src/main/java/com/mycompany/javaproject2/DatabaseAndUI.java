@@ -9,7 +9,7 @@ class DBConnection {
     private static final String USER = "root";
 
     // Change this if your MySQL password is different.
-    private static final String PASSWORD = "Narimanna2011";
+    private static final String PASSWORD = "SW1234";
 
     public static Connection getConnection() {
         try {

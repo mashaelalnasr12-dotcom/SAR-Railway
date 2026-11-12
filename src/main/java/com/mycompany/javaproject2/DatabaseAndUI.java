@@ -84,7 +84,8 @@ class DBConnection {
                     {"staff1", "Noran",   "noran@gmail.com",   "Staff", "SAR Employee,Fahad Khalid",      "fahad@sar.sa,fahad@gmail.com"},
                     {"staff2", "Seba",    "seba@gmail.com",    "Staff", "Sara Ahmed",                     "sara@sar.sa,sara@gmail.com"},
                     {"staff3", "Mashael", "mashael@gmail.com", "Staff", "Nora Saleh",                     "nora@sar.sa,nora@gmail.com"},
-                    {"staff4", "Raghad",  "raghad@gmail.com",  "Staff", "",                               ""}
+                    {"staff4", "Raghad",  "raghad@gmail.com",  "Staff", "",                               ""},
+                    {"staff5", "Raneem",  "raneem@gmail.com",  "Staff", "",                               ""}
             };
             for (String[] d : defaults) {
                 try {

@@ -76,7 +76,8 @@ INSERT INTO employees (full_name, username, email, password, role) VALUES
 ('Noran', 'staff1', 'noran@gmail.com', '1234', 'Staff'),
 ('Seba', 'staff2', 'seba@gmail.com', '1234', 'Staff'),
 ('Mashael', 'staff3', 'mashael@gmail.com', '1234', 'Staff'),
-('Raghad', 'staff4', 'raghad@gmail.com', '1234', 'Staff');
+('Raghad', 'staff4', 'raghad@gmail.com', '1234', 'Staff'),
+('Raneem', 'staff5', 'raneem@gmail.com', '1234', 'Staff');
 
 INSERT INTO stations (station_name, city) VALUES
 ('Riyadh Station', 'Riyadh'),

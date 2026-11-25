@@ -348,7 +348,28 @@ class CargoBookingDetailsFrame extends JFrame {
         try {
             Connection con = DBConnection.getConnection();
             if (con == null) return;
+            String capacitySql =
+        "SELECT COUNT(*) FROM car_cargo_bookings " +
+        "WHERE departure_station=? AND arrival_station=? " +
+        "AND travel_date=? AND departure_time=? " +
+        "AND status <> 'Cancelled'";
 
+        PreparedStatement capacityPs = con.prepareStatement(capacitySql);
+        capacityPs.setString(1, fromStation);
+        capacityPs.setString(2, toStation);
+        capacityPs.setString(3, travelDate);
+        capacityPs.setString(4, depTime);
+
+         ResultSet capacityRs = capacityPs.executeQuery();
+
+        if (capacityRs.next() && capacityRs.getInt(1) >= 8) {
+          JOptionPane.showMessageDialog(this,
+          "This car cargo trip is fully booked.");
+    return;
+}
+
+        capacityRs.close();
+        capacityPs.close();
             String sql = "INSERT INTO car_cargo_bookings(customer_id, departure_station, arrival_station, travel_date, departure_time, arrival_time, car_plate, car_brand, car_model, owner_name, amount, status) " +
                     "VALUES(?,?,?,?,?,?,?,?,?,?,?,'Booked')";
             PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);

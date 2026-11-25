@@ -313,6 +313,7 @@ class SearchTripsFrame extends JFrame {
                     "JOIN stations s2 ON t.arrival_station = s2.station_id " +
                     "LEFT JOIN tickets tk ON t.trip_id = tk.trip_id " +
                     "WHERE s1.station_name=? AND s2.station_name=? AND DATE(t.departure_time)=? " +
+                    "AND t.departure_time > (SELECT arrival_time FROM trips WHERE trip_id=?) " +
                     timeCondition +
                     "GROUP BY t.trip_id, tr.train_name, s1.station_name, s2.station_name, " +
                     "t.departure_time, t.arrival_time, t.price, tr.capacity, t.status " +
@@ -322,6 +323,7 @@ class SearchTripsFrame extends JFrame {
             ps.setString(1, toStation);
             ps.setString(2, fromStation);
             ps.setString(3, returnDate);
+            ps.setInt(4, selectedOutboundTripId);
 
             ResultSet rs = ps.executeQuery();
             int count = 0;

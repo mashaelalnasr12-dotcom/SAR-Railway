@@ -79,6 +79,39 @@ class CustomerSignupFrame extends JFrame {
 
     void createAccount() {
         try {
+            String fullName = name.getText().trim();
+            String nationalId = nid.getText().trim();
+            String phoneNumber = phone.getText().trim();
+String emailAddress = email.getText().trim();
+String password = new String(pass.getPassword());
+
+if (fullName.isEmpty() || nationalId.isEmpty()
+        || phoneNumber.isEmpty() || emailAddress.isEmpty()
+        || password.isBlank()) {
+    JOptionPane.showMessageDialog(this,
+            "Please fill all fields.");
+    return;
+}
+
+if (!nationalId.matches("[12][0-9]{9}")) {
+    JOptionPane.showMessageDialog(this,
+            "National ID must contain 10 digits and start with 1 or 2.");
+    return;
+}
+
+if (!phoneNumber.matches("\\+9665[0-9]{8}")) {
+    JOptionPane.showMessageDialog(this,
+            "Phone number must be in the format +9665XXXXXXXX.");
+    return;
+}
+
+if (password.length() < 8 || password.length() > 50
+        || !password.matches("(?s).*[a-zA-Z].*")
+        || !password.matches("(?s).*[0-9].*")) {
+    JOptionPane.showMessageDialog(this,
+            "Password must contain 8 to 50 characters, including a letter and a number.");
+    return;
+}
             if (!email.getText().trim().toLowerCase().endsWith("@gmail.com")) {
                 JOptionPane.showMessageDialog(this, "Email must be a Gmail address, for example: name@gmail.com");
                 return;
@@ -1214,32 +1247,45 @@ class MyBookingsFrame extends JFrame {
     }
 
     void cancelSelectedTicket() {
-        int row = ticketTable.getSelectedRow();
+    int row = ticketTable.getSelectedRow();
 
-        if (row == -1) {
-            JOptionPane.showMessageDialog(this, "Select a train ticket first.");
+    if (row == -1) {
+        JOptionPane.showMessageDialog(this, "Select a train ticket first.");
+        return;
+    }
+
+    int ticketId = Integer.parseInt(ticketModel.getValueAt(row, 0).toString());
+
+    try {
+        Connection con = DBConnection.getConnection();
+        if (con == null) return;
+
+        PreparedStatement ps = con.prepareStatement(
+                "UPDATE tickets tk JOIN trips t ON tk.trip_id = t.trip_id " +
+                "SET tk.ticket_status='Cancelled' " +
+                "WHERE tk.ticket_id=? AND tk.customer_id=? " +
+                "AND tk.ticket_status='Booked' " +
+                "AND t.departure_time > NOW()"
+        );
+
+        ps.setInt(1, ticketId);
+        ps.setInt(2, customerId);
+
+        int updated = ps.executeUpdate();
+
+        if (updated == 0) {
+            JOptionPane.showMessageDialog(this,
+                    "Only active tickets can be cancelled before departure.");
             return;
         }
 
-        int ticketId = Integer.parseInt(ticketModel.getValueAt(row, 0).toString());
+        JOptionPane.showMessageDialog(this, "Train ticket cancelled successfully.");
+        load();
 
-        try {
-            Connection con = DBConnection.getConnection();
-            if (con == null) return;
-
-            PreparedStatement ps = con.prepareStatement(
-                    "UPDATE tickets SET ticket_status='Cancelled' WHERE ticket_id=?"
-            );
-            ps.setInt(1, ticketId);
-            ps.executeUpdate();
-
-            JOptionPane.showMessageDialog(this, "Train ticket cancelled successfully.");
-            load();
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, e.getMessage());
-        }
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, e.getMessage());
     }
+}
 
     void cancelSelectedCargo() {
         int row = cargoTable.getSelectedRow();

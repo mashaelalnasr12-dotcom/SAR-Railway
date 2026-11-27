@@ -137,3 +137,29 @@ ADD FOREIGN KEY (booking_id)
 
 ADD FOREIGN KEY (passenger_id)
     REFERENCES passengers(passenger_id);
+
+ CREATE TABLE car_cargo_bookings (
+    cargo_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT,
+    departure_station VARCHAR(100),
+    arrival_station VARCHAR(100),
+    travel_date VARCHAR(30),
+    departure_time VARCHAR(20),
+    arrival_time VARCHAR(20),
+    car_plate VARCHAR(30),
+    amount DOUBLE,
+    status VARCHAR(30),
+    booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    car_brand VARCHAR(50),
+    car_model VARCHAR(50),
+    owner_name VARCHAR(100),
+
+    CONSTRAINT fk_cargo_customer
+        FOREIGN KEY (customer_id)
+        REFERENCES customers(customer_id)
+);
+
+ALTER TABLE customers
+ADD COLUMN employees_employee_id INT NULL,
+ADD FOREIGN KEY (employees_employee_id)
+REFERENCES employees(employee_id);

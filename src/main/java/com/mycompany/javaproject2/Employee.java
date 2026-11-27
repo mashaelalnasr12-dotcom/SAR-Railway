@@ -114,7 +114,8 @@ class EmployeeLoginFrame extends JFrame {
                     roleValue = rs.getString("role");
                 } catch (Exception ignored) {}
 
-                new EmployeeDashboardFrame(usernameValue, roleValue);
+                new EmployeeDashboardFrame(usernameValue, roleValue,
+                rs.getInt("employee_id"));
                 dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid employee account.");
@@ -128,12 +129,14 @@ class EmployeeLoginFrame extends JFrame {
 
 
 class EmployeeDashboardFrame extends JFrame {
+    int employeeId;
     JPanel center = new JPanel(new GridLayout(2, 3, 18, 18));
     String username;
     String role;
     boolean isAdmin;
 
-    public EmployeeDashboardFrame(String username, String role) {
+    public EmployeeDashboardFrame(String username, String role, int employeeId) {
+        this.employeeId = employeeId;
         this.username = username;
         this.role = role == null ? "Staff" : role;
         this.isAdmin = this.role.equalsIgnoreCase("Admin");
@@ -194,7 +197,7 @@ class EmployeeDashboardFrame extends JFrame {
         refreshDashboard();
 
         refresh.addActionListener(e -> refreshDashboard());
-        assistBooking.addActionListener(e -> new CounterBookingFrame());
+        assistBooking.addActionListener(e -> new CounterBookingFrame(employeeId));
         findBooking.addActionListener(e -> new EmployeeFindBookingFrame());
         trips.addActionListener(e -> new ViewTripsFrame(true, 0));
         seatMap.addActionListener(e -> new SeatMapFrame());
@@ -603,6 +606,7 @@ class EmployeeManagementFrame extends JFrame {
 
 
  class CounterBookingFrame extends JFrame {
+    int employeeId;
     JTextField email = new JTextField();
     JLabel customerInfo = new JLabel("Search customer by email.");
     int selectedCustomerId = -1;
@@ -614,7 +618,8 @@ class EmployeeManagementFrame extends JFrame {
     JSpinner childSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 9, 1));
     JSpinner infantSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 9, 1));
 
-    public CounterBookingFrame() {
+    public CounterBookingFrame(int employeeId) {
+    this.employeeId = employeeId;
         setTitle("Assist Customer Booking");
         setSize(780, 560);
         setLocationRelativeTo(null);
@@ -674,7 +679,7 @@ JPanel main = new JPanel(new BorderLayout());
         p.add(findTrips);
 
         search.addActionListener(e -> searchCustomer());
-        create.addActionListener(e -> new CustomerSignupFrame());
+       create.addActionListener(e -> new CustomerSignupFrame(employeeId));
         findTrips.addActionListener(e -> openTrips());
 
         main.add(header, BorderLayout.NORTH);

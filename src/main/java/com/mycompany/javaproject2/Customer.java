@@ -46,6 +46,7 @@ class CustomerStartFrame extends JFrame {
 
 
 class CustomerSignupFrame extends JFrame {
+    Integer employeeId;
     JTextField name = new JTextField();
     JTextField nid = new JTextField();
     JTextField phone = new JTextField("+966");
@@ -53,6 +54,11 @@ class CustomerSignupFrame extends JFrame {
     JPasswordField pass = new JPasswordField();
 
     public CustomerSignupFrame() {
+    this(null);
+}
+
+public CustomerSignupFrame(Integer employeeId) {
+    this.employeeId = employeeId;
         setTitle("Create Customer Account");
         setSize(450, 430);
         setLocationRelativeTo(null);
@@ -120,7 +126,7 @@ if (password.length() < 8 || password.length() > 50
             Connection con = DBConnection.getConnection();
             if (con == null) return;
 
-            String sql = "INSERT INTO customers(full_name,national_id,phone,email,password) VALUES(?,?,?,?,?)";
+           String sql = "INSERT INTO customers(full_name,national_id,phone,email,password,employees_employee_id) VALUES(?,?,?,?,?,?)";
             PreparedStatement ps = con.prepareStatement(sql);
 
             ps.setString(1, name.getText());
@@ -129,6 +135,11 @@ if (password.length() < 8 || password.length() > 50
             ps.setString(4, email.getText());
             ps.setString(5, new String(pass.getPassword()));
 
+            if (employeeId == null) {
+             ps.setNull(6, Types.INTEGER);
+          } else {
+             ps.setInt(6, employeeId);
+}
             ps.executeUpdate();
 
             JOptionPane.showMessageDialog(this, "Account created successfully.");

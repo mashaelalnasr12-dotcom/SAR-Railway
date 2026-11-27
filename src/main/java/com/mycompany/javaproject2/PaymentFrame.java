@@ -6,6 +6,7 @@ import java.awt.*;
 import java.sql.*;
 import java.util.ArrayList;
 import java.io.*;
+import java.math.BigDecimal;
 
 class PaymentFrame extends JFrame {
 
@@ -353,7 +354,7 @@ if (tripType.equalsIgnoreCase("Round Trip")) {
                     writer.write(
                             rs.getInt("payment_id") + "," +
                             rs.getInt("ticket_id") + "," +
-                            "\"" + rs.getString("full_name") + "\"," +
+                            PaymentsFrame.quoteCsv(rs.getString("full_name")) + "," +
                             rs.getDouble("amount") + "," +
                             rs.getString("payment_method") + "," +
                             rs.getString("payment_status") + "," +
@@ -392,10 +393,12 @@ class PaymentsFrame extends JFrame {
       
         JButton importBtn = UI.button("Import Payments");
         importBtn.addActionListener(e -> importPayments());
+        JButton exportBtn = UI.button("Export Payments");
+        exportBtn.addActionListener(e -> exportPayments());
 
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
-    
         bottom.add(importBtn);
+        bottom.add(exportBtn);
 
         add(new JScrollPane(table), BorderLayout.CENTER);
         add(bottom, BorderLayout.SOUTH);
@@ -405,100 +408,108 @@ class PaymentsFrame extends JFrame {
     }
 
     void load() {
-        model.setRowCount(0);
-
-        try {
-            Connection con = DBConnection.getConnection();
+        try (Connection con = DBConnection.getConnection()) {
             if (con == null) return;
-
-            String sql =
-                    "SELECT p.payment_id, p.ticket_id, c.full_name, p.amount, " +
-                    "p.payment_method, p.payment_status, p.payment_date " +
-                    "FROM payments p " +
-                    "JOIN tickets tk ON p.ticket_id = tk.ticket_id " +
-                    "JOIN customers c ON tk.customer_id = c.customer_id";
-
-            Statement st = con.createStatement();
-            ResultSet rs = st.executeQuery(sql);
-
-            while (rs.next()) {
-                model.addRow(new Object[]{
-                        rs.getInt("payment_id"),
-                        rs.getInt("ticket_id"),
-                        rs.getString("full_name"),
-                        rs.getDouble("amount"),
-                        rs.getString("payment_method"),
-                        rs.getString("payment_status"),
-                        rs.getString("payment_date")
-                });
-            }
-
-        } catch (Exception e) {
+            showPayments(readPayments(con));
+        } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, e.getMessage());
         }
     }
 
-    void exportPayments() {
-        try {
-            FileWriter writer = new FileWriter("Payments_Report.csv");
+    private ArrayList<Object[]> readPayments(Connection con) throws SQLException {
+        String sql =
+                "SELECT p.payment_id, p.ticket_id, c.full_name, p.amount, " +
+                        "p.payment_method, p.payment_status, p.payment_date " +
+                        "FROM payments p " +
+                        "JOIN tickets tk ON p.ticket_id = tk.ticket_id " +
+                        "JOIN customers c ON tk.customer_id = c.customer_id";
 
-            writer.write("Payment ID,Ticket ID,Customer,Amount,Method,Status,Date\n");
-
-            for (int i = 0; i < model.getRowCount(); i++) {
-                writer.write(
-                        model.getValueAt(i, 0) + "," +
-                        model.getValueAt(i, 1) + "," +
-                        "\"" + model.getValueAt(i, 2) + "\"," +
-                        model.getValueAt(i, 3) + "," +
-                        model.getValueAt(i, 4) + "," +
-                        model.getValueAt(i, 5) + "," +
-                        model.getValueAt(i, 6) + "\n"
-                );
+        ArrayList<Object[]> payments = new ArrayList<>();
+        try (Statement statement = con.createStatement();
+             ResultSet rows = statement.executeQuery(sql)) {
+            while (rows.next()) {
+                payments.add(new Object[]{
+                        rows.getInt("payment_id"),
+                        rows.getInt("ticket_id"),
+                        rows.getString("full_name"),
+                        rows.getDouble("amount"),
+                        rows.getString("payment_method"),
+                        rows.getString("payment_status"),
+                        rows.getString("payment_date")
+                });
             }
+        }
+        return payments;
+    }
 
-            writer.close();
-
+    void exportPayments() {
+        try (Connection con = DBConnection.getConnection()) {
+            if (con == null) return;
+            ArrayList<Object[]> payments = readPayments(con);
+            try (FileWriter writer = new FileWriter("Payments_Report.csv")) {
+                writer.write("Payment ID,Ticket ID,Customer,Amount,Method,Status,Date\n");
+                for (Object[] payment : payments) {
+                    writer.write(payment[0] + "," + payment[1] + "," +
+                            quoteCsv((String) payment[2]) + "," + payment[3] + "," +
+                            payment[4] + "," + payment[5] + "," + payment[6] + "\n");
+                }
+            }
             JOptionPane.showMessageDialog(this, "Payments exported successfully.");
-
-        } catch (Exception e) {
+        } catch (IOException | SQLException e) {
             JOptionPane.showMessageDialog(this, "Export failed: " + e.getMessage());
         }
     }
 
     void importPayments() {
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader("Payments_Report.csv"));
-
-            model.setRowCount(0);
-
-            String line = reader.readLine();
-
-            while ((line = reader.readLine()) != null) {
-                String[] data = line.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
-
-                if (data.length >= 7) {
-                    model.addRow(new Object[]{
-                            clean(data[0]),
-                            clean(data[1]),
-                            clean(data[2]),
-                            clean(data[3]),
-                            clean(data[4]),
-                            clean(data[5]),
-                            clean(data[6])
-                    });
-                }
+        ArrayList<Object[]> payments = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader("Payments_Report.csv"))) {
+            if (reader.readLine() == null) {
+                throw new IOException("The payment CSV is empty.");
             }
-
-            reader.close();
-
-            JOptionPane.showMessageDialog(this, "Payments imported successfully.");
-
-        } catch (Exception e) {
+            String line;
+            int lineNumber = 1;
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+                if (line.isBlank()) continue;
+                String[] fields = line.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)", -1);
+                if (fields.length != 7) {
+                    throw new IOException("Expected seven fields on line " + lineNumber + ".");
+                }
+                for (int column = 0; column < fields.length; column++) {
+                    fields[column] = clean(fields[column]);
+                }
+                try {
+                    new BigDecimal(fields[3]);
+                } catch (NumberFormatException e) {
+                    throw new IOException("Amount on line " + lineNumber + " must be numeric.", e);
+                }
+                payments.add(fields);
+            }
+        } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Import failed: " + e.getMessage());
+            return;
+        }
+
+        showPayments(payments);
+        JOptionPane.showMessageDialog(this, "Payments imported successfully.");
+    }
+
+    private void showPayments(ArrayList<Object[]> payments) {
+        model.setRowCount(0);
+        for (Object[] payment : payments) {
+            model.addRow(payment);
         }
     }
 
-    String clean(String value) {
-        return value.replace("\"", "").trim();
+    static String quoteCsv(String value) {
+        return "\"" + value.replace("\"", "\"\"") + "\"";
+    }
+
+    private String clean(String value) {
+        String field = value.trim();
+        if (field.length() >= 2 && field.startsWith("\"") && field.endsWith("\"")) {
+            return field.substring(1, field.length() - 1).replace("\"\"", "\"");
+        }
+        return field;
     }
 }

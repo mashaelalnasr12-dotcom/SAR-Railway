@@ -371,65 +371,120 @@ class CargoBookingDetailsFrame extends JFrame {
             "Please enter a valid car model year.");
     return;
 }
-        try {
-            Connection con = DBConnection.getConnection();
-            if (con == null) return;
-            String capacitySql =
-        "SELECT COUNT(*) FROM car_cargo_bookings " +
-        "WHERE departure_station=? AND arrival_station=? " +
-        "AND travel_date=? AND departure_time=? " +
-        "AND status <> 'Cancelled'";
+        Connection con = null;
 
-        PreparedStatement capacityPs = con.prepareStatement(capacitySql);
+try {
+    con = DBConnection.getConnection();
+    if (con == null) return;
+
+    con.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+    con.setAutoCommit(false);
+
+    // Lock the selected cargo trip
+    String lockSql =
+            "SELECT trip_id FROM trips WHERE trip_id=? FOR UPDATE";
+
+    try (PreparedStatement lockPs = con.prepareStatement(lockSql)) {
+        lockPs.setInt(1, tripId);
+
+        try (ResultSet lockRs = lockPs.executeQuery()) {
+            if (!lockRs.next()) {
+                throw new SQLException("Cargo trip not found.");
+            }
+        }
+    }
+
+    // Check cargo capacity
+    String capacitySql =
+            "SELECT COUNT(*) FROM car_cargo_bookings " +
+            "WHERE departure_station=? AND arrival_station=? " +
+            "AND travel_date=? AND departure_time=? " +
+            "AND status <> 'Cancelled'";
+
+    try (PreparedStatement capacityPs =
+                 con.prepareStatement(capacitySql)) {
+
         capacityPs.setString(1, fromStation);
         capacityPs.setString(2, toStation);
         capacityPs.setString(3, travelDate);
         capacityPs.setString(4, depTime);
 
-         ResultSet capacityRs = capacityPs.executeQuery();
-
-        if (capacityRs.next() && capacityRs.getInt(1) >= 8) {
-          JOptionPane.showMessageDialog(this,
-          "This car cargo trip is fully booked.");
-    return;
-}
-
-        capacityRs.close();
-        capacityPs.close();
-            String sql = "INSERT INTO car_cargo_bookings(customer_id, departure_station, arrival_station, travel_date, departure_time, arrival_time, car_plate, car_brand, car_model, owner_name, amount, status) " +
-                    "VALUES(?,?,?,?,?,?,?,?,?,?,?,'Booked')";
-            PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            ps.setInt(1, customerId);
-            ps.setString(2, fromStation);
-            ps.setString(3, toStation);
-            ps.setString(4, travelDate);
-            ps.setString(5, depTime);
-            ps.setString(6, arrTime);
-            ps.setString(7, plate.getText().trim());
-            ps.setString(8, brand.getText().trim());
-            ps.setString(9, model.getText().trim());
-            ps.setString(10, owner.getText().trim());
-            ps.setDouble(11, amount);
-            ps.executeUpdate();
-
-            ResultSet keys = ps.getGeneratedKeys();
-            keys.next();
-            int cargoId = keys.getInt(1);
-
-            JOptionPane.showMessageDialog(this,
-                    "Car Cargo booked successfully!\n" +
-                            "Cargo Booking ID: " + cargoId + "\n" +
-                            "Route: " + fromStation + " → " + toStation + "\n" +
-                            "Date: " + travelDate + "\n" +
-                            "Car Plate: " + plate.getText().trim() + "\n" +
-                            "Amount: " + SarPriceFormat.english(amount) + "\n"
-                            + SarPriceFormat.arabic(amount));
-
-            dispose();
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, e.getMessage());
+        try (ResultSet capacityRs = capacityPs.executeQuery()) {
+            if (capacityRs.next() && capacityRs.getInt(1) >= 8) {
+                throw new SQLException(
+                        "This car cargo trip is fully booked.");
+            }
         }
+    }
+
+    // Save cargo booking
+    String sql =
+            "INSERT INTO car_cargo_bookings(customer_id, departure_station, arrival_station, travel_date, departure_time, arrival_time, car_plate, car_brand, car_model, owner_name, amount, status) " +
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,'Booked')";
+
+    int cargoId;
+
+    try (PreparedStatement ps =
+                 con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+        ps.setInt(1, customerId);
+        ps.setString(2, fromStation);
+        ps.setString(3, toStation);
+        ps.setString(4, travelDate);
+        ps.setString(5, depTime);
+        ps.setString(6, arrTime);
+        ps.setString(7, plate.getText().trim());
+        ps.setString(8, brand.getText().trim());
+        ps.setString(9, model.getText().trim());
+        ps.setString(10, owner.getText().trim());
+        ps.setDouble(11, amount);
+
+        ps.executeUpdate();
+
+        try (ResultSet keys = ps.getGeneratedKeys()) {
+            if (!keys.next()) {
+                throw new SQLException("Booking could not be completed.");
+            }
+
+            cargoId = keys.getInt(1);
+        }
+    }
+
+    con.commit();
+
+    JOptionPane.showMessageDialog(this,
+            "Car Cargo booked successfully!\n" +
+            "Cargo Booking ID: " + cargoId + "\n" +
+            "Route: " + fromStation + " → " + toStation + "\n" +
+            "Date: " + travelDate + "\n" +
+            "Car Plate: " + plate.getText().trim() + "\n" +
+            "Amount: " + SarPriceFormat.english(amount) + "\n" +
+            SarPriceFormat.arabic(amount));
+
+    dispose();
+
+} catch (Exception e) {
+
+    if (con != null) {
+        try {
+            con.rollback();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    JOptionPane.showMessageDialog(this, e.getMessage());
+
+} finally {
+
+    if (con != null) {
+        try {
+            con.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+}
     }
 }
 

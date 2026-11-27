@@ -1136,7 +1136,7 @@ class MyBookingsFrame extends JFrame {
         main.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         ticketModel.setColumnIdentifiers(new String[]{
-                "Ticket ID", "Route", "Departure → Arrival Time", "Seat", "Booking Date", "Status", "Payment Amount"
+                "Ticket ID", "Route", "Departure → Arrival Time", "Seat", "Travel Date", "Status", "Payment Amount"
         });
 
         cargoModel.setColumnIdentifiers(new String[]{
@@ -1203,7 +1203,7 @@ class MyBookingsFrame extends JFrame {
             if (con == null) return;
 
             String ticketSql =
-                    "SELECT tk.ticket_id, tk.seat_number, tk.booking_date, tk.ticket_status, " +
+                    "SELECT tk.ticket_id, tk.seat_number, DATE(t.departure_time) AS travel_date, tk.ticket_status, " +
                             "IFNULL(p.amount, 0) AS amount, IFNULL(p.payment_status, 'Not Paid') AS payment_status, " +
                             "s1.station_name AS from_station, s2.station_name AS to_station, " +
                             "TIME(t.departure_time) AS dep_time, TIME(t.arrival_time) AS arr_time " +
@@ -1231,7 +1231,7 @@ class MyBookingsFrame extends JFrame {
                         ticketRs.getString("from_station") + " → " + ticketRs.getString("to_station"),
                         dep + " → " + arr,
                         ticketRs.getString("seat_number"),
-                        ticketRs.getString("booking_date"),
+                        ticketRs.getString("travel_date"),
                         ticketRs.getString("ticket_status"),
                         ticketRs.getDouble("amount") + " SAR (" + ticketRs.getString("payment_status") + ")"
                 });

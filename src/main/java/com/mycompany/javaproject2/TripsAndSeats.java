@@ -225,6 +225,7 @@ class SearchTripsFrame extends JFrame {
                     "SELECT t.trip_id, tr.train_name, s1.station_name AS from_station, s2.station_name AS to_station, " +
                     "TIME(t.departure_time) AS dep_time, TIME(t.arrival_time) AS arr_time, " +
                     "t.departure_time, t.arrival_time, t.price, tr.capacity, t.status, " +
+                    "TIMESTAMPDIFF(MINUTE, t.departure_time, t.arrival_time) AS duration_minutes, " +
                     "(tr.capacity - COUNT(CASE WHEN tk.ticket_status='Booked' THEN 1 END)) AS seats_left " +
                     "FROM trips t " +
                     "JOIN trains tr ON t.train_id = tr.train_id " +
@@ -253,12 +254,13 @@ class SearchTripsFrame extends JFrame {
                 String trainName = rs.getString("train_name");
                 String depTime = rs.getString("dep_time").substring(0, 5);
                 String arrTime = rs.getString("arr_time").substring(0, 5);
+                long durationMinutes = rs.getLong("duration_minutes");
                 double economyPrice = rs.getDouble("price");
                 double businessPrice = economyPrice + 105;
                 int seatsLeft = rs.getInt("seats_left");
                 String status = rs.getString("status");
 
-                tripsPanel.add(tripCard(tripId, trainName, depTime, arrTime, economyPrice, businessPrice, seatsLeft, status));
+                tripsPanel.add(tripCard(tripId, trainName, depTime, arrTime, durationMinutes, economyPrice, businessPrice, seatsLeft, status));
                 tripsPanel.add(Box.createVerticalStrut(14));
             }
 
@@ -306,6 +308,7 @@ class SearchTripsFrame extends JFrame {
             String sql =
                     "SELECT t.trip_id, tr.train_name, TIME(t.departure_time) AS dep_time, TIME(t.arrival_time) AS arr_time, " +
                     "t.price, tr.capacity, t.status, " +
+                    "TIMESTAMPDIFF(MINUTE, t.departure_time, t.arrival_time) AS duration_minutes, " +
                     "(tr.capacity - COUNT(CASE WHEN tk.ticket_status='Booked' THEN 1 END)) AS seats_left " +
                     "FROM trips t " +
                     "JOIN trains tr ON t.train_id = tr.train_id " +
@@ -336,11 +339,12 @@ class SearchTripsFrame extends JFrame {
                 String trainName = rs.getString("train_name");
                 String depTime = rs.getString("dep_time").substring(0, 5);
                 String arrTime = rs.getString("arr_time").substring(0, 5);
+                long durationMinutes = rs.getLong("duration_minutes");
                 double economyPrice = rs.getDouble("price");
                 int seatsLeft = rs.getInt("seats_left");
                 String status = rs.getString("status");
 
-                tripsPanel.add(returnTripCard(tripId, trainName, depTime, arrTime, economyPrice, seatsLeft, status));
+                tripsPanel.add(returnTripCard(tripId, trainName, depTime, arrTime, durationMinutes, economyPrice, seatsLeft, status));
                 tripsPanel.add(Box.createVerticalStrut(10));
             }
 
@@ -359,7 +363,11 @@ class SearchTripsFrame extends JFrame {
         }
     }
 
-    JPanel returnTripCard(int tripId, String trainName, String depTime, String arrTime,
+    private static String durationText(long minutes) {
+        return (minutes / 60) + " H " + (minutes % 60) + " M";
+    }
+
+    JPanel returnTripCard(int tripId, String trainName, String depTime, String arrTime, long durationMinutes,
                           double economyPrice, int seatsLeft, String status) {
 
         JPanel card = new JPanel(new BorderLayout());
@@ -382,7 +390,7 @@ class SearchTripsFrame extends JFrame {
 
         left.add(bigTime(arrTime, shortName(fromStation)));
 
-        JLabel train = new JLabel("<html><b>Return Trip</b><br>" + trainName + "</html>");
+        JLabel train = new JLabel("<html><b>Return Trip</b><br>" + trainName + "<br>" + durationText(durationMinutes) + "</html>");
         train.setFont(new Font("Arial", Font.BOLD, 15));
         left.add(train);
 
@@ -417,7 +425,7 @@ class SearchTripsFrame extends JFrame {
         return card;
     }
 
-    JPanel tripCard(int tripId, String trainName, String depTime, String arrTime,
+    JPanel tripCard(int tripId, String trainName, String depTime, String arrTime, long durationMinutes,
                     double economyPrice, double businessPrice, int seatsLeft, String status) {
 
         JPanel card = new JPanel(new BorderLayout());
@@ -438,7 +446,7 @@ class SearchTripsFrame extends JFrame {
 
         JLabel arr = bigTime(arrTime, shortName(toStation));
 
-        JLabel train = new JLabel("<html><b>4 H 16 M</b><br>" + trainName + "</html>");
+        JLabel train = new JLabel("<html><b>" + durationText(durationMinutes) + "</b><br>" + trainName + "</html>");
         train.setFont(new Font("Arial", Font.BOLD, 16));
         train.setForeground(new Color(35, 35, 35));
 

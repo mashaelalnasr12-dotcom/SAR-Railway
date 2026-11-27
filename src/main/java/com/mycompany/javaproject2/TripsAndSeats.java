@@ -324,6 +324,8 @@ class SearchTripsFrame extends JFrame {
             ps.setString(2, fromStation);
             ps.setString(3, returnDate);
             ps.setInt(4, selectedOutboundTripId);
+            System.out.println("Return From: " + toStation);
+
 
             ResultSet rs = ps.executeQuery();
             int count = 0;
@@ -841,8 +843,9 @@ class SeatSelectionFrame extends JFrame {
             return;
         }
 
-        new PaymentFrame(customerId, tripId, fareType, unitPrice, selectedSeats,
-                tripType, returnDate, selectedReturnTripId, outboundSeats, outboundTripId);
+      new PaymentFrame(customerId, tripId, fareType, unitPrice, selectedSeats,
+        tripType, returnDate, selectedReturnTripId, outboundSeats, outboundTripId,
+        adults, children, infants);
         dispose();
     }
 }

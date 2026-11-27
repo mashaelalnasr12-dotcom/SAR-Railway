@@ -344,7 +344,33 @@ class CargoBookingDetailsFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Please fill all vehicle details.");
             return;
         }
+        if (!plate.getText().trim().matches(
+          "(?=.*\\p{L})(?=.*\\p{Nd})[\\p{L}\\p{Nd} ]{4,15}")) {
+            JOptionPane.showMessageDialog(this,
+            "Please enter a valid car plate number.");
+          return;
+        }
 
+       if (!owner.getText().trim().matches("[\\p{L} ]{2,100}")) {
+            JOptionPane.showMessageDialog(this,
+            "Please enter a valid owner name.");
+        return;
+    }
+
+       if (!brand.getText().trim().matches("[\\p{L}][\\p{L}\\p{Nd} -]{1,49}")) {
+         JOptionPane.showMessageDialog(this,
+            "Please enter a valid car brand.");
+          return;
+}
+
+      if (!model.getText().trim().matches("[0-9]{4}")
+        || Integer.parseInt(model.getText().trim()) < 1900
+        || Integer.parseInt(model.getText().trim()) > java.time.Year.now().getValue()) {
+
+    JOptionPane.showMessageDialog(this,
+            "Please enter a valid car model year.");
+    return;
+}
         try {
             Connection con = DBConnection.getConnection();
             if (con == null) return;

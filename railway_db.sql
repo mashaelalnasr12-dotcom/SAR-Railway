@@ -98,3 +98,42 @@ VALUES
 (2, 2, 1, '2026-05-02 09:00:00', '2026-05-02 13:00:00', 120.00, 'Available'),
 (3, 3, 4, '2026-05-03 10:00:00', '2026-05-03 11:30:00', 80.00, 'Available'),
 (3, 4, 5, '2026-05-04 15:00:00', '2026-05-04 17:00:00', 95.00, 'Available');
+
+-- Booking and passenger relationships
+
+CREATE TABLE bookings (
+    booking_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    outbound_trip_id INT NOT NULL,
+    return_trip_id INT NULL,
+    booking_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (customer_id)
+        REFERENCES customers(customer_id),
+
+    FOREIGN KEY (outbound_trip_id)
+        REFERENCES trips(trip_id),
+
+    FOREIGN KEY (return_trip_id)
+        REFERENCES trips(trip_id)
+);
+
+CREATE TABLE passengers (
+    passenger_id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_id INT NOT NULL,
+    passenger_category ENUM('Adult', 'Child', 'Infant') NOT NULL,
+
+    FOREIGN KEY (booking_id)
+        REFERENCES bookings(booking_id)
+);
+
+ALTER TABLE tickets
+ADD COLUMN booking_id INT NULL,
+ADD COLUMN passenger_id INT NULL,
+ADD COLUMN ticket_class VARCHAR(20) NULL,
+
+ADD FOREIGN KEY (booking_id)
+    REFERENCES bookings(booking_id),
+
+ADD FOREIGN KEY (passenger_id)
+    REFERENCES passengers(passenger_id);

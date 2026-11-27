@@ -855,6 +855,8 @@ void showDualCalendarDialog(JTextField departField, JTextField returnField) {
     prev.setBackground(Color.WHITE);
     next.setBackground(Color.WHITE);
 
+    JTextField departPreview = new JTextField();
+    JTextField returnPreview = new JTextField();  
     Runnable[] refresh = new Runnable[1];
 
     refresh[0] = () -> {
@@ -870,6 +872,13 @@ void showDualCalendarDialog(JTextField departField, JTextField returnField) {
         leftGrid.repaint();
         rightGrid.revalidate();
         rightGrid.repaint();
+        departPreview.setText(
+    selectedDepart[0] == null ? "" : selectedDepart[0].toString()
+);
+
+returnPreview.setText(
+    selectedReturn[0] == null ? "" : selectedReturn[0].toString()
+);
     };
 
     prev.addActionListener(e -> {
@@ -907,8 +916,7 @@ void showDualCalendarDialog(JTextField departField, JTextField returnField) {
     calendarsPanel.add(leftCalendar);
     calendarsPanel.add(rightCalendar);
 
-    JTextField departPreview = new JTextField();
-    JTextField returnPreview = new JTextField();
+ 
 
     departPreview.setEditable(false);
     returnPreview.setEditable(false);
@@ -1019,7 +1027,8 @@ void buildRoundTripMonth(JPanel panel, YearMonth ym,
         boolean isDepart = selectedDepart[0] != null && currentDate.equals(selectedDepart[0]);
         boolean isReturn = selectedReturn[0] != null && currentDate.equals(selectedReturn[0]);
 
-        if (isDepart || isReturn) {
+        if ((isDepartCalendar && isDepart) ||
+              (!isDepartCalendar && isReturn)) {
             dayBtn.setBackground(UI.teal);
             dayBtn.setForeground(Color.WHITE);
             dayBtn.setFont(new Font("Arial", Font.BOLD, 16));

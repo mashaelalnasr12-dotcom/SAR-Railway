@@ -10,6 +10,9 @@ import java.io.*;
 class PaymentFrame extends JFrame {
 
     int customerId;
+    int adults;
+    int children;
+    int infants;
     int tripId;
     String fareType;
     double unitPrice;
@@ -24,19 +27,23 @@ class PaymentFrame extends JFrame {
             new JComboBox<>(new String[]{"Mada", "Visa", "MasterCard", "Cash"});
 
     public PaymentFrame(int customerId, int tripId, String fareType, double unitPrice,
-                        ArrayList<String> selectedSeats, String tripType, String returnDate,
-                        int selectedReturnTripId, ArrayList<String> outboundSeats, int outboundTripId) {
+                    ArrayList<String> selectedSeats, String tripType, String returnDate,
+                    int selectedReturnTripId, ArrayList<String> outboundSeats, int outboundTripId,
+                    int adults, int children, int infants) {
 
-        this.customerId = customerId;
-        this.tripId = tripId;
-        this.fareType = fareType;
-        this.unitPrice = unitPrice;
-        this.selectedSeats = selectedSeats;
-        this.tripType = tripType;
-        this.returnDate = returnDate;
-        this.selectedReturnTripId = selectedReturnTripId;
-        this.outboundSeats = outboundSeats;
-        this.outboundTripId = outboundTripId;
+           this.customerId = customerId;
+           this.adults = adults;
+           this.children = children;
+           this.infants = infants;
+           this.tripId = tripId;
+           this.fareType = fareType;
+           this.unitPrice = unitPrice;
+           this.selectedSeats = selectedSeats;
+           this.tripType = tripType;
+           this.returnDate = returnDate;
+           this.selectedReturnTripId = selectedReturnTripId;
+           this.outboundSeats = outboundSeats;
+           this.outboundTripId = outboundTripId;
 
         setTitle("Payment");
         setSize(500, 450);
@@ -71,83 +78,218 @@ class PaymentFrame extends JFrame {
         setVisible(true);
     }
 
-    void payNow(double total) {
-        try {
-            Connection con = DBConnection.getConnection();
+  void payNow(double total) {
+
+    Connection con = null;
+     try {
+        con = DBConnection.getConnection();
             if (con == null) return;
 
             con.setAutoCommit(false);
+            String lockSql =
+            "SELECT trip_id FROM trips " +
+            "WHERE trip_id IN (?,?) " +
+            "ORDER BY trip_id FOR UPDATE";
 
-            ArrayList<Integer> ticketIds = new ArrayList<>();
+          try (PreparedStatement lockPs = con.prepareStatement(lockSql)) {
+           if (tripType.equalsIgnoreCase("Round Trip")) {
+            lockPs.setInt(1, outboundTripId);
+            lockPs.setInt(2, selectedReturnTripId);
+          } else {
+              lockPs.setInt(1, tripId);
+              lockPs.setInt(2, tripId);
+    }
 
-            String ticketSql =
-                    "INSERT INTO tickets(customer_id, trip_id, seat_number, ticket_status) VALUES(?,?,?,'Booked')";
+           try (ResultSet lockRs = lockPs.executeQuery()) {
+            while (lockRs.next()) {
+            // Lock selected trip records.
+        }
+     }
+    }
+         String checkSql =
+        "SELECT ticket_id FROM tickets " +
+        "WHERE trip_id=? AND seat_number=? " +
+        "AND ticket_status='Booked' FOR UPDATE";
 
-            String paySql =
-                    "INSERT INTO payments(ticket_id, amount, payment_method, payment_status) VALUES(?,?,?,'Paid')";
+       try (PreparedStatement checkPs = con.prepareStatement(checkSql)) {
 
-            if (tripType.equalsIgnoreCase("Round Trip")) {
+         if (tripType.equalsIgnoreCase("Round Trip")) {
+            for (String seat : outboundSeats) {
+              checkPs.setInt(1, outboundTripId);
+               checkPs.setString(2, seat);
 
-                for (String seat : outboundSeats) {
-                    PreparedStatement ps = con.prepareStatement(ticketSql, Statement.RETURN_GENERATED_KEYS);
-                    ps.setInt(1, customerId);
-                    ps.setInt(2, outboundTripId);
-                    ps.setString(3, seat);
-                    ps.executeUpdate();
-
-                    ResultSet keys = ps.getGeneratedKeys();
-                    keys.next();
-                    int ticketId = keys.getInt(1);
-                    ticketIds.add(ticketId);
-
-                    PreparedStatement pay = con.prepareStatement(paySql);
-                    pay.setInt(1, ticketId);
-                    pay.setDouble(2, unitPrice / 2);
-                    pay.setString(3, method.getSelectedItem().toString());
-                    pay.executeUpdate();
-                }
-
-                for (String seat : selectedSeats) {
-                    PreparedStatement ps = con.prepareStatement(ticketSql, Statement.RETURN_GENERATED_KEYS);
-                    ps.setInt(1, customerId);
-                    ps.setInt(2, selectedReturnTripId);
-                    ps.setString(3, seat);
-                    ps.executeUpdate();
-
-                    ResultSet keys = ps.getGeneratedKeys();
-                    keys.next();
-                    int ticketId = keys.getInt(1);
-                    ticketIds.add(ticketId);
-
-                    PreparedStatement pay = con.prepareStatement(paySql);
-                    pay.setInt(1, ticketId);
-                    pay.setDouble(2, unitPrice / 2);
-                    pay.setString(3, method.getSelectedItem().toString());
-                    pay.executeUpdate();
-                }
-
-            } else {
-
-                for (String seat : selectedSeats) {
-                    PreparedStatement ps = con.prepareStatement(ticketSql, Statement.RETURN_GENERATED_KEYS);
-                    ps.setInt(1, customerId);
-                    ps.setInt(2, tripId);
-                    ps.setString(3, seat);
-                    ps.executeUpdate();
-
-                    ResultSet keys = ps.getGeneratedKeys();
-                    keys.next();
-                    int ticketId = keys.getInt(1);
-                    ticketIds.add(ticketId);
-
-                    PreparedStatement pay = con.prepareStatement(paySql);
-                    pay.setInt(1, ticketId);
-                    pay.setDouble(2, unitPrice);
-                    pay.setString(3, method.getSelectedItem().toString());
-                    pay.executeUpdate();
+            try (ResultSet rs = checkPs.executeQuery()) {
+                if (rs.next()) {
+                    throw new SQLException("Seat " + seat +
+                            " is already booked.");
                 }
             }
+        }
+    }
 
+    for (String seat : selectedSeats) {
+        checkPs.setInt(1,
+                tripType.equalsIgnoreCase("Round Trip")
+                ? selectedReturnTripId : tripId);
+
+        checkPs.setString(2, seat);
+
+        try (ResultSet rs = checkPs.executeQuery()) {
+            if (rs.next()) {
+                throw new SQLException("Seat " + seat +
+                        " is already booked.");
+            }
+        }
+    }
+}
+String bookingSql =
+        "INSERT INTO bookings(customer_id, outbound_trip_id, return_trip_id) " +
+        "VALUES(?,?,?)";
+
+int bookingId;
+
+try (PreparedStatement bookingPs = con.prepareStatement(
+        bookingSql, Statement.RETURN_GENERATED_KEYS)) {
+
+    bookingPs.setInt(1, customerId);
+
+    if (tripType.equalsIgnoreCase("Round Trip")) {
+        bookingPs.setInt(2, outboundTripId);
+        bookingPs.setInt(3, selectedReturnTripId);
+    } else {
+        bookingPs.setInt(2, tripId);
+        bookingPs.setNull(3, Types.INTEGER);
+    }
+
+    bookingPs.executeUpdate();
+
+    try (ResultSet keys = bookingPs.getGeneratedKeys()) {
+        if (!keys.next()) {
+            throw new SQLException("Failed to create booking.");
+        }
+        bookingId = keys.getInt(1);
+    }
+}ArrayList<String> passengerCategories = new ArrayList<>();
+
+for (int i = 0; i < adults; i++) {
+    passengerCategories.add("Adult");
+}
+
+for (int i = 0; i < children; i++) {
+    passengerCategories.add("Child");
+}
+
+for (int i = 0; i < infants; i++) {
+    passengerCategories.add("Infant");
+}
+
+if (passengerCategories.size() != selectedSeats.size()) {
+    throw new SQLException("Passenger count does not match selected seats.");
+}
+
+ArrayList<Integer> passengerIds = new ArrayList<>();
+
+String passengerSql =
+        "INSERT INTO passengers(booking_id, passenger_category) VALUES(?,?)";
+
+try (PreparedStatement passengerPs = con.prepareStatement(
+        passengerSql, Statement.RETURN_GENERATED_KEYS)) {
+
+    for (String category : passengerCategories) {
+        passengerPs.setInt(1, bookingId);
+        passengerPs.setString(2, category);
+        passengerPs.executeUpdate();
+
+        try (ResultSet keys = passengerPs.getGeneratedKeys()) {
+            if (!keys.next()) {
+                throw new SQLException("Failed to save passenger.");
+            }
+            passengerIds.add(keys.getInt(1));
+        }
+    }
+}
+            ArrayList<Integer> ticketIds = new ArrayList<>();
+int passengerIndex = 0;
+
+String ticketSql =
+        "INSERT INTO tickets(customer_id, trip_id, seat_number, ticket_status, booking_id, passenger_id, ticket_class) " +
+        "VALUES(?,?,?,'Booked',?,?,?)";
+
+String paySql =
+        "INSERT INTO payments(ticket_id, amount, payment_method, payment_status) VALUES(?,?,?,'Paid')";
+
+if (tripType.equalsIgnoreCase("Round Trip")) {
+
+    for (String seat : outboundSeats) {
+        PreparedStatement ps = con.prepareStatement(ticketSql, Statement.RETURN_GENERATED_KEYS);
+        ps.setInt(1, customerId);
+        ps.setInt(2, outboundTripId);
+        ps.setString(3, seat);
+        ps.setInt(4, bookingId);
+        ps.setInt(5, passengerIds.get(passengerIndex++));
+        ps.setString(6, fareType);
+        ps.executeUpdate();
+
+        ResultSet keys = ps.getGeneratedKeys();
+        keys.next();
+        int ticketId = keys.getInt(1);
+        ticketIds.add(ticketId);
+
+        PreparedStatement pay = con.prepareStatement(paySql);
+        pay.setInt(1, ticketId);
+        pay.setDouble(2, unitPrice / 2);
+        pay.setString(3, method.getSelectedItem().toString());
+        pay.executeUpdate();
+    }
+
+    passengerIndex = 0;
+
+    for (String seat : selectedSeats) {
+        PreparedStatement ps = con.prepareStatement(ticketSql, Statement.RETURN_GENERATED_KEYS);
+        ps.setInt(1, customerId);
+        ps.setInt(2, selectedReturnTripId);
+        ps.setString(3, seat);
+        ps.setInt(4, bookingId);
+        ps.setInt(5, passengerIds.get(passengerIndex++));
+        ps.setString(6, fareType);
+        ps.executeUpdate();
+
+        ResultSet keys = ps.getGeneratedKeys();
+        keys.next();
+        int ticketId = keys.getInt(1);
+        ticketIds.add(ticketId);
+
+        PreparedStatement pay = con.prepareStatement(paySql);
+        pay.setInt(1, ticketId);
+        pay.setDouble(2, unitPrice / 2);
+        pay.setString(3, method.getSelectedItem().toString());
+        pay.executeUpdate();
+    }
+
+} else {
+
+    for (String seat : selectedSeats) {
+        PreparedStatement ps = con.prepareStatement(ticketSql, Statement.RETURN_GENERATED_KEYS);
+        ps.setInt(1, customerId);
+        ps.setInt(2, tripId);
+        ps.setString(3, seat);
+        ps.setInt(4, bookingId);
+        ps.setInt(5, passengerIds.get(passengerIndex++));
+        ps.setString(6, fareType);
+        ps.executeUpdate();
+
+        ResultSet keys = ps.getGeneratedKeys();
+        keys.next();
+        int ticketId = keys.getInt(1);
+        ticketIds.add(ticketId);
+
+        PreparedStatement pay = con.prepareStatement(paySql);
+        pay.setInt(1, ticketId);
+        pay.setDouble(2, unitPrice);
+        pay.setString(3, method.getSelectedItem().toString());
+        pay.executeUpdate();
+    }
+}
             con.commit();
 
             exportPaidTickets(ticketIds);
@@ -159,8 +301,25 @@ class PaymentFrame extends JFrame {
             dispose();
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, e.getMessage());
+           if (con != null) {
+             try {
+                con.rollback();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
         }
+    }
+
+    JOptionPane.showMessageDialog(this, e.getMessage());
+
+} finally {
+    if (con != null) {
+        try {
+            con.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+}
     }
 
     void exportPaidTickets(ArrayList<Integer> ticketIds) {
